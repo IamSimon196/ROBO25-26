@@ -3,7 +3,6 @@ import numpy as np
 from gpiozero import DigitalOutputDevice, PWMOutputDevice
 import time
 
-# Define motor control pins using gpiozero
 IN1 = DigitalOutputDevice(18)  # Right motor forward
 IN2 = DigitalOutputDevice(23)  # Right motor backward
 IN3 = DigitalOutputDevice(14)  # Left motor forward
@@ -11,10 +10,9 @@ IN4 = DigitalOutputDevice(15)  # Left motor backward
 ENA = PWMOutputDevice(13)  # Right motor speed
 ENB = PWMOutputDevice(12)  # Left motor speed
 
-# PID constants
-Kp = 0.02  # Proportional gain
-Ki = 0.001  # Integral gain
-Kd = 0.07  # Derivative gain
+Kp = 0.02  
+Ki = 0.001  
+Kd = 0.07 
 
 prev_error = 0
 integral = 0
@@ -46,7 +44,6 @@ while True:
             correction = Kp * error + Ki * integral + Kd * derivative
             prev_error = error
 
-            # Adjust motor speeds using PID output
             right_speed = max(0, min(1, 0.5 - correction))
             left_speed = max(0, min(1, 0.5 + correction))
 
@@ -56,7 +53,6 @@ while True:
             print(f"CX: {cx}, Error: {error}, Correction: {correction}")
             print(f"Right Speed: {right_speed}, Left Speed: {left_speed}")
 
-            # Movement logic updated
             if error > 5:
                 print("Turn Right")
                 IN1.on()
