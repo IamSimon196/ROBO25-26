@@ -3,11 +3,9 @@ import os
 from gpiozero import PWMOutputDevice, DigitalOutputDevice
 from time import sleep
 
-# Define motor speed control
 ENA = PWMOutputDevice(8)  # Left motor speed
 ENB = PWMOutputDevice(7)  # Right motor speed
 
-# Define direction control
 IN1 = DigitalOutputDevice(14)  # Left motor forward
 IN2 = DigitalOutputDevice(15)  # Left motor backward
 IN3 = DigitalOutputDevice(18)  # Right motor forward
@@ -15,7 +13,6 @@ IN4 = DigitalOutputDevice(23)  # Right motor backward
 
 print("Motor system initialized")
 
-# Motor control functions
 def move_forward():
     print("Moving Forward")
     ENA.value = 0.8
@@ -61,7 +58,6 @@ def stop():
     IN3.off()
     IN4.off()
 
-# Setup curses
 screen = curses.initscr()
 curses.noecho()
 curses.cbreak()
@@ -74,23 +70,23 @@ try:
         screen.addstr(2, 0, f"Key pressed: {char}")
         screen.refresh()
 
-        if char == ord('q'):  # Quit
+        if char == ord('q'):
             stop()
             break
-        elif char == ord('p'):  # Shutdown
+        elif char == ord('p'):
             stop()
             curses.nocbreak()
             screen.keypad(0)
             curses.echo()
             curses.endwin()
             os.system('sudo halt')
-        elif char == curses.KEY_UP:  # Move forward
+        elif char == curses.KEY_UP: 
             move_forward()
-        elif char == curses.KEY_DOWN:  # Move backward
+        elif char == curses.KEY_DOWN: 
             move_backward()
-        elif char == curses.KEY_LEFT:  # Turn left
+        elif char == curses.KEY_LEFT:  
             turn_left()
-        elif char == curses.KEY_RIGHT:  # Turn right
+        elif char == curses.KEY_RIGHT:  
             turn_right()
         else:
             stop()
