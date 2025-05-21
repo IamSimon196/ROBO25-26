@@ -1,0 +1,115 @@
+import cv2
+import numpy as np
+from gpiozero import DigitalOutputDevice, PWMOutputDevice
+import time
+
+
+# Init var
+IN1 = DigitalOutputDevice(18)  # Right motor forward
+IN2 = DigitalOutputDevice(23)  # Right motor backward
+IN3 = DigitalOutputDevice(14)  # Left motor forward
+IN4 = DigitalOutputDevice(15)  # Left motor backward
+ENA = PWMOutputDevice(8)  # Right motor speed
+ENB = PWMOutputDevice(7)  # Left motor speed
+
+Kp = 1.2 
+Ki = 0.01
+Kd = 0.7
+
+prev_error = 0
+integral = 0
+
+cap = cv2.VideoCapture(0)
+cap.set(3, 1280) 
+cap.set(4, 720)   
+
+# Init fn
+
+def map_value(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
+def move(error, right_speed, left_speed):
+    if error > 150:
+        print("Turn Right")
+        IN1.on()
+        IN2.off()
+        IN3.off()
+        IN4.on()
+    elif -150 <= error <= 150:
+        base_speed = 0.5
+        right_speed += base_speed
+        left_speed += base_speed
+        right_speed = map_value(right_speed, 0, 1.5, 0, 1)
+        left_speed = map_value(left_speed, 0, 1.5, 0, 1)
+        ENA.value = right_speed
+        ENB.value = left_speed
+
+        print("On Track!")
+        IN1.on()
+        IN2.off()
+        IN3.on()
+        IN4.off()
+    else:
+        print("Turn Left")
+        IN1.off()
+        IN2.on()
+        IN3.on()
+        IN4.off()
+
+def pid(cx, integral, prev_error):
+    error = cx - 640  
+    integral += error
+    derivative = error - prev_error
+
+    correction = Kp * error + Ki * integral + Kd * derivative
+
+    correction = max(-640, min(640, correction))
+    correction = map_value(correction, -640, 640, -1.0, 1.0)
+    right_speed = abs(0.0 - correction)
+    left_speed = abs(0.0 + correction)
+
+    ENA.value = float(right_speed)
+    ENB.value = float(left_speed)
+    print(f"ENA:{ENA.value} ENB:{ENB.value}")
+    print(f"CX: {cx}, Error: {error}, Correction: {correction}")
+    print(f"Right Speed: {right_speed}, Left Speed: {left_speed}")
+
+    return error, right_speed, left_speed, integral
+
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to capture frame")
+        continue
+    
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV)  
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    if contours:
+        c = max(contours, key=cv2.contourArea)
+        M = cv2.moments(c)
+
+        if M["m00"] != 0:
+            cx = int(M['m10'] / M['m00'])
+            cy = int(M['m01'] / M['m00'])
+
+            prev_error, right_speed, left_speed = pid(cx, integral, prev_error)[0], pid(cx, integral, prev_error)[1], pid(cx, integral, prev_error)[2]
+            integral += pid(cx, integral, prev_error)[3]
+            
+            move(prev_error, right_speed, left_speed)
+
+    else:
+        print("No line detected")
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        IN1.off()
+        IN2.off()
+        IN3.off()
+        IN4.off()
+        break
+
+cap.release()
+cv2.destroyAllWindows()
