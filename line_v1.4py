@@ -12,9 +12,9 @@ IN4 = DigitalOutputDevice(15)  # Left motor backward
 ENA = PWMOutputDevice(8)  # Right motor speed
 ENB = PWMOutputDevice(7)  # Left motor speed
 
-Kp = 1.2 
-Ki = 0.01
-Kd = 0.7
+Kp = 1.4
+Ki = 0.1
+Kd = 0.9
 
 prev_error = 0
 integral = 0
@@ -96,8 +96,7 @@ while True:
             cx = int(M['m10'] / M['m00'])
             cy = int(M['m01'] / M['m00'])
 
-            prev_error, right_speed, left_speed = pid(cx, integral, prev_error)[0], pid(cx, integral, prev_error)[1], pid(cx, integral, prev_error)[2]
-            integral += pid(cx, integral, prev_error)[3]
+            prev_error, right_speed, left_speed, integral = pid(cx, integral, prev_error)[0], pid(cx, integral, prev_error)[1], pid(cx, integral, prev_error)[2], pid(cx, integral, prev_error)[3]
             
             move(prev_error, right_speed, left_speed)
 
