@@ -1,99 +1,71 @@
-import curses
-import os
-from gpiozero import PWMOutputDevice, DigitalOutputDevice
-from time import sleep
+import paramiko
+import pygame
+import time
 
-ENA = PWMOutputDevice(8)  # Left motor speed
-ENB = PWMOutputDevice(7)  # Right motor speed
+RPI_HOST = "192.168.200.146"  
+USERNAME = "admin"
+PASSWORD = "admin"
 
-IN1 = DigitalOutputDevice(14)  # Left motor forward
-IN2 = DigitalOutputDevice(15)  # Left motor backward
-IN3 = DigitalOutputDevice(18)  # Right motor forward
-IN4 = DigitalOutputDevice(23)  # Right motor backward
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client.connect(RPI_HOST, username=USERNAME, password=PASSWORD)
+sftp = client.open_sftp()  
 
-print("Motor system initialized")
 
-def move_forward():
-    print("Moving Forward")
-    ENA.value = 0.8
-    ENB.value = 0.8
-    IN1.on()
-    IN2.off()
-    IN3.on()
-    IN4.off()
+pygame.init()
+screen = pygame.display.set_mode((100, 100))
 
-def move_backward():
-    print("Moving Backward")
-    ENA.value = 0.8
-    ENB.value = 0.8
-    IN1.off()
-    IN2.on()
-    IN3.off()
-    IN4.on()
-
-def turn_right():
-    print("Turning Left")
-    ENA.value = 0.6
-    ENB.value = 0.8
-    IN1.off()
-    IN2.on()
-    IN3.on()
-    IN4.off()
-
-def turn_left():
-    print("Turning Right")
-    ENA.value = 0.8
-    ENB.value = 0.6
-    IN1.on()
-    IN2.off()
-    IN3.off()
-    IN4.on()
-
-def stop():
-    print("Stopping")
-    ENA.value = 0
-    ENB.value = 0
-    IN1.off()
-    IN2.off()
-    IN3.off()
-    IN4.off()
-
-screen = curses.initscr()
-curses.noecho()
-curses.cbreak()
-curses.halfdelay(3)
-screen.keypad(True)
+angle = 0
 
 try:
     while True:
-        char = screen.getch()
-        screen.addstr(2, 0, f"Key pressed: {char}")
-        screen.refresh()
+        pygame.event.pump()
 
-        if char == ord('q'):
-            stop()
-            break
-        elif char == ord('p'):
-            stop()
-            curses.nocbreak()
-            screen.keypad(0)
-            curses.echo()
-            curses.endwin()
-            os.system('sudo halt')
-        elif char == curses.KEY_UP: 
-            move_forward()
-        elif char == curses.KEY_DOWN: 
-            move_backward()
-        elif char == curses.KEY_LEFT:  
-            turn_left()
-        elif char == curses.KEY_RIGHT:  
-            turn_right()
+        key = pygame.key.get_pressed()
+
+        if key[pygame.K_w] and key[pygame.K_a]:
+            right_speed = 1.0
+            left_speed = 0.0
+        elif key[pygame.K_w] and key[pygame.K_d]:
+            right_speed = 0.0
+            left_speed = 1.0
+        elif key[pygame.K_s] and key[pygame.K_a]:
+            right_speed = -1.0
+            left_speed = 0.0
+        elif key[pygame.K_s] and key[pygame.K_d]:
+            right_speed = 0.0
+            left_speed = -1.0
+
+        elif key[pygame.K_s]:
+            right_speed = -1.0
+            left_speed = -1.0
+        elif key[pygame.K_w]:
+            right_speed = 1.0
+            left_speed = 1.0
+        elif key[pygame.K_a]:
+            right_speed = 1.0
+            left_speed = -1.0
+        elif key[pygame.K_d]:
+            right_speed = -1.0
+            left_speed = 1.0
         else:
-            stop()
+            right_speed = 0
+            left_speed = 0
 
-finally:
-    curses.nocbreak()
-    screen.keypad(0)
-    curses.echo()
-    curses.endwin()
-    stop()
+        if key[pygame.K_e]:
+            angle += 5.0
+        elif key[pygame.K_f]:
+            angle -= 5.0
+        angle = max(0, min(angle, 180))
+        print(angle)
+
+        with sftp.file("/home/admin/remote/values.txt", "w") as file:
+            file.write(f"{right_speed:.2f} {left_speed:.2f} {angle:.2f}")
+
+        time.sleep(0.001)
+
+
+except KeyboardInterrupt:
+    sftp.close()
+    client.close()
+    pygame.quit()
