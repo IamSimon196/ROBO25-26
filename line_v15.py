@@ -3,6 +3,8 @@ import numpy as np
 from gpiozero import DigitalOutputDevice, PWMOutputDevice
 import time
 
+
+# Init var
 IN1 = DigitalOutputDevice(18)  # Right motor forward
 IN2 = DigitalOutputDevice(23)  # Right motor backward
 IN3 = DigitalOutputDevice(14)  # Left motor forward
@@ -21,41 +23,47 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 1280) 
 cap.set(4, 720)   
 
-
+# Init fn
 
 def map_value(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
 def pid(cx, prev_error, integral):
-    setpoint = 640 
+    setpoint = 640  # Center of the frame
     error = cx - setpoint
     integral += error
 
-    integral = max(-1000, min(1000, integral)) 
+    integral = max(-1000, min(1000, integral))  # You can tune this limit
+
     derivative = error - prev_error
 
-
+    # PID output
     correction = Kp * error + Ki * integral + Kd * derivative
+
+    # Optionally clamp correction to avoid extreme values
     correction = max(-400, min(400, correction))
+
 
     return correction, error, integral
 
 def move(correction):
-    base_speed = 0.7  
-    max_correction = 400 
+    base_speed = 0.7  # Adjust as needed (0 to 1)
+    max_correction = 400  # Should match clamp in pid()
 
+    # Scale correction to [-base_speed, base_speed]
     scaled = map_value(correction, -max_correction, max_correction, -base_speed, base_speed)
 
     right_speed = base_speed - scaled
     left_speed = base_speed + scaled
 
-
+    # Clamp speeds to [0, 1]
     right_speed = max(0, min(1, right_speed))
     left_speed = max(0, min(1, left_speed))
 
     ENA.value = right_speed
     ENB.value = left_speed
 
+    # Set motor directions for forward movement
     IN1.on()
     IN2.off()
     IN3.on()
@@ -82,7 +90,7 @@ while True:
             cx = int(M['m10'] / M['m00'])
             correction, prev_error, integral = pid(cx, prev_error, integral)
             move(correction)
-            
+
     else:
         print("No line detected")
 
@@ -95,3 +103,4 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+
